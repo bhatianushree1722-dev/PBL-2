@@ -5,7 +5,7 @@ const path = require("path");
 const databasePath = path.join(__dirname, "..", "aquasense.db");
 const db = new Database(databasePath);
 
-// Create a table for sensor readings
+// Create the readings table if it does not exist.
 db.exec(`
   CREATE TABLE IF NOT EXISTS readings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,13 +21,13 @@ db.exec(`
   );
 `);
 
-console.log("AquaSense database initialized.");
-
+// Detect existing database columns before applying migrations.
 const existingColumns = db
   .prepare("PRAGMA table_info(readings)")
   .all()
   .map((column) => column.name);
 
+// Preserve compatibility with existing databases.
 if (!existingColumns.includes("source")) {
   db.exec(`
     ALTER TABLE readings
@@ -48,5 +48,16 @@ if (!existingColumns.includes("pressureMode")) {
     ADD COLUMN pressureMode TEXT NOT NULL DEFAULT 'simulated'
   `);
 }
+
+// New column: identifies the simulator scenario.
+// Existing records remain intact and receive NULL.
+if (!existingColumns.includes("scenario")) {
+  db.exec(`
+    ALTER TABLE readings
+    ADD COLUMN scenario TEXT DEFAULT NULL
+  `);
+}
+
+console.log("AquaSense database initialized.");
 
 module.exports = db;

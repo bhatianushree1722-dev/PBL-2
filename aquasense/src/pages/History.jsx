@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from "react";
 import {
   History as HistoryIcon,
@@ -103,16 +104,23 @@ const historyRecords = [
   },
 ];
 
+const dateOptions = [
+  "Today",
+  "Last 7 Days",
+  "Last 30 Days",
+  "This Month",
+];
+
 function History() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState(null);
-
-  // Date dropdown state
   const [dateRange, setDateRange] = useState("Last 7 Days");
   const [showDateMenu, setShowDateMenu] = useState(false);
 
   const filteredRecords = useMemo(() => {
+    const searchText = search.trim().toLowerCase();
+
     return historyRecords.filter((record) => {
       const matchesFilter =
         filter === "All" ||
@@ -120,14 +128,19 @@ function History() {
         (filter === "Attention" && record.severity === "warning") ||
         (filter === "Observation" && record.severity === "info");
 
-      const searchText = search.toLowerCase();
+      const searchableText = [
+        record.type,
+        record.date,
+        record.time,
+        record.flow,
+        record.duration,
+        record.status,
+        record.note,
+      ]
+        .join(" ")
+        .toLowerCase();
 
-      const matchesSearch =
-        record.type.toLowerCase().includes(searchText) ||
-        record.date.toLowerCase().includes(searchText) ||
-        record.time.toLowerCase().includes(searchText);
-
-      return matchesFilter && matchesSearch;
+      return matchesFilter && searchableText.includes(searchText);
     });
   }, [filter, search]);
 
@@ -145,12 +158,7 @@ function History() {
 
   return (
     <div className="page-container history-page">
-
-      {/* =========================
-          HEADER
-      ========================== */}
       <div className="page-header">
-
         <div>
           <div className="page-eyebrow">
             <HistoryIcon size={13} />
@@ -164,18 +172,16 @@ function History() {
           </p>
         </div>
 
-        {/* DATE DROPDOWN */}
         <div className="history-date-wrapper">
-
           <button
+            type="button"
             className="history-date-range"
-            onClick={() => setShowDateMenu(!showDateMenu)}
+            onClick={() => setShowDateMenu((previous) => !previous)}
             aria-expanded={showDateMenu}
+            aria-haspopup="true"
           >
             <CalendarDays size={16} />
-
             <span>{dateRange}</span>
-
             <ChevronDown
               size={15}
               className={showDateMenu ? "date-chevron-open" : ""}
@@ -184,14 +190,9 @@ function History() {
 
           {showDateMenu && (
             <div className="history-date-menu">
-
-              {[
-                "Today",
-                "Last 7 Days",
-                "Last 30 Days",
-                "This Month",
-              ].map((option) => (
+              {dateOptions.map((option) => (
                 <button
+                  type="button"
                   key={option}
                   className={dateRange === option ? "selected" : ""}
                   onClick={() => {
@@ -200,128 +201,93 @@ function History() {
                   }}
                 >
                   <span>{option}</span>
-
                   {dateRange === option && (
                     <span className="date-check">✓</span>
                   )}
                 </button>
               ))}
-
             </div>
           )}
-
         </div>
       </div>
 
-      {/* =========================
-          SUMMARY
-      ========================== */}
       <div className="history-summary-grid">
-
         <div className="history-summary-card">
-
           <div className="history-summary-icon blue">
             <HistoryIcon size={20} />
           </div>
-
           <div>
             <span>Total Records</span>
             <strong>{historyRecords.length}</strong>
             <p>Recorded observations</p>
           </div>
-
         </div>
 
         <div className="history-summary-card">
-
           <div className="history-summary-icon green">
             <CheckCircle2 size={20} />
           </div>
-
           <div>
             <span>Normal Records</span>
             <strong>{normalCount}</strong>
             <p>Expected flow activity</p>
           </div>
-
         </div>
 
         <div className="history-summary-card">
-
           <div className="history-summary-icon orange">
             <Activity size={20} />
           </div>
-
           <div>
             <span>Observations</span>
             <strong>{observationCount}</strong>
             <p>Elevated flow periods</p>
           </div>
-
         </div>
 
         <div className="history-summary-card">
-
           <div className="history-summary-icon red">
             <AlertTriangle size={20} />
           </div>
-
           <div>
             <span>Attention</span>
             <strong>{abnormalCount}</strong>
             <p>Requires review</p>
           </div>
-
         </div>
-
       </div>
 
-      {/* =========================
-          FILTER BAR
-      ========================== */}
       <div className="history-toolbar">
-
         <div className="history-filters">
-
-          {["All", "Normal", "Observation", "Attention"].map(
-            (item) => (
-              <button
-                key={item}
-                className={filter === item ? "active" : ""}
-                onClick={() => setFilter(item)}
-              >
-                {item}
-              </button>
-            )
-          )}
-
+          {["All", "Normal", "Observation", "Attention"].map((item) => (
+            <button
+              type="button"
+              key={item}
+              className={filter === item ? "active" : ""}
+              onClick={() => setFilter(item)}
+              aria-pressed={filter === item}
+            >
+              {item}
+            </button>
+          ))}
         </div>
 
         <div className="history-search">
-
           <Search size={16} />
-
           <input
-            type="text"
+            type="search"
             placeholder="Search records..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
+            aria-label="Search history records"
           />
-
         </div>
-
       </div>
 
-      {/* =========================
-          RECORDS
-      ========================== */}
       <div className="history-records-card">
-
         <div className="history-records-header">
-
           <div>
             <h3>Flow History</h3>
-
             <p>
               {filteredRecords.length} record
               {filteredRecords.length !== 1 ? "s" : ""} found
@@ -332,29 +298,17 @@ function History() {
             <Clock3 size={15} />
             Latest first
           </div>
-
         </div>
 
         <div className="history-list">
-
           {filteredRecords.length === 0 ? (
-
             <div className="history-empty">
-
               <Search size={25} />
-
               <strong>No records found</strong>
-
-              <p>
-                Try changing the filter or search term.
-              </p>
-
+              <p>Try changing the filter or search term.</p>
             </div>
-
           ) : (
-
             filteredRecords.map((record) => {
-
               const isExpanded = expandedId === record.id;
 
               return (
@@ -364,18 +318,14 @@ function History() {
                   }`}
                   key={record.id}
                 >
-
-                  {/* RECORD ROW */}
-
                   <button
+                    type="button"
                     className="history-record-main"
                     onClick={() =>
-                      setExpandedId(
-                        isExpanded ? null : record.id
-                      )
+                      setExpandedId(isExpanded ? null : record.id)
                     }
+                    aria-expanded={isExpanded}
                   >
-
                     <div
                       className={`history-record-icon ${record.severity}`}
                     >
@@ -389,29 +339,20 @@ function History() {
                     </div>
 
                     <div className="history-record-title">
-
                       <strong>{record.type}</strong>
-
                       <span>
                         {record.date} • {record.time}
                       </span>
-
                     </div>
 
                     <div className="history-record-flow">
-
                       <strong>{record.flow}</strong>
-
                       <span>L/min</span>
-
                     </div>
 
                     <div className="history-record-duration">
-
                       <span>Duration</span>
-
                       <strong>{record.duration}</strong>
-
                     </div>
 
                     <div
@@ -421,135 +362,87 @@ function History() {
                     </div>
 
                     <div className="history-expand">
-
                       {isExpanded ? (
                         <ChevronUp size={17} />
                       ) : (
                         <ChevronDown size={17} />
                       )}
-
                     </div>
-
                   </button>
 
-                  {/* EXPANDED DETAILS */}
-
                   {isExpanded && (
-
                     <div className="history-record-details">
-
                       <div className="history-detail-grid">
-
                         <div>
                           <span>Observed Flow</span>
-                          <strong>
-                            {record.flow} L/min
-                          </strong>
+                          <strong>{record.flow} L/min</strong>
                         </div>
 
                         <div>
                           <span>Duration</span>
-                          <strong>
-                            {record.duration}
-                          </strong>
+                          <strong>{record.duration}</strong>
                         </div>
 
                         <div>
                           <span>Recorded Date</span>
-                          <strong>
-                            {record.date}
-                          </strong>
+                          <strong>{record.date}</strong>
                         </div>
 
                         <div>
                           <span>Recorded Time</span>
-                          <strong>
-                            {record.time}
-                          </strong>
+                          <strong>{record.time}</strong>
                         </div>
-
                       </div>
 
                       <div className="history-detail-note">
-
                         <div>
                           <Droplets size={17} />
                         </div>
-
                         <p>
-                          <strong>System note:</strong>{" "}
-                          {record.note}
+                          <strong>System note:</strong> {record.note}
                         </p>
-
                       </div>
-
                     </div>
-
                   )}
-
                 </div>
               );
             })
           )}
-
         </div>
 
-        {/* PAGINATION */}
-
         <div className="history-pagination">
-
           <span>
-            Showing {filteredRecords.length} of{" "}
-            {historyRecords.length} records
+            Showing {filteredRecords.length} of {historyRecords.length} records
           </span>
 
           <div>
-
-            <button disabled>
+            <button type="button" disabled>
               Previous
             </button>
-
-            <button className="active">
+            <button type="button" className="active">
               1
             </button>
-
-            <button disabled>
+            <button type="button" disabled>
               Next
             </button>
-
           </div>
-
         </div>
-
       </div>
 
-      {/* =========================
-          INFORMATION NOTE
-      ========================== */}
-
       <div className="history-information">
-
         <div className="history-information-icon">
           <AlertTriangle size={17} />
         </div>
 
         <div>
-
-          <strong>
-            How to interpret these records
-          </strong>
-
+          <strong>How to interpret these records</strong>
           <p>
-            AquaSense records flow patterns and highlights
-            unusual observations for review. A historical
-            abnormal-flow observation does not independently
-            confirm or locate a physical leak.
+            AquaSense records flow patterns and highlights unusual
+            observations for review. A historical abnormal-flow observation
+            does not independently confirm or locate a physical leak.
           </p>
-
         </div>
-
       </div>
-
     </div>
   );
 }

@@ -23,9 +23,10 @@ const insertReading = db.prepare(`
     sensorStatus,
     source,
     pressureBar,
-    pressureMode
+    pressureMode,
+    scenario
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 function generateReading() {
@@ -65,7 +66,8 @@ function generateReading() {
     "online",
     "simulated",
     Number(pressureBar.toFixed(2)),
-    "simulated"
+    "simulated",
+    scenario
   );
 }
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Bot } from "lucide-react";
 import "./App.css";
 
 import Sidebar from "./components/Sidebar";
@@ -11,6 +12,7 @@ import History from "./pages/History";
 import Events from "./pages/Events";
 import DeviceHealth from "./pages/DeviceHealth";
 import Settings from "./pages/Settings";
+import AIAssistant from "./pages/AIAssistant";
 
 function App() {
   const [activePage, setActivePage] = useState("Overview");
@@ -19,25 +21,20 @@ function App() {
     switch (activePage) {
       case "Overview":
         return <Overview />;
-
       case "Live Monitoring":
         return <LiveMonitoring />;
-
       case "Consumption":
         return <Consumption />;
-
       case "History":
         return <History />;
-
       case "Events":
         return <Events />;
-
       case "Device Health":
         return <DeviceHealth />;
-
       case "Settings":
         return <Settings />;
-
+      case "AI Assistant":
+        return <AIAssistant />;
       default:
         return <Overview />;
     }
@@ -52,11 +49,25 @@ function App() {
 
       <div className="aquasense-main">
         <Header />
-
         <main className="aquasense-content">
           {renderPage()}
         </main>
       </div>
+
+      <button
+        type="button"
+        className={`ai-floating-button ${
+          activePage === "AI Assistant" ? "active" : ""
+        }`}
+        onClick={() => setActivePage("AI Assistant")}
+        aria-label="Open AI Assistant"
+        title="AI Assistant"
+      >
+        <Bot size={25} strokeWidth={2} />
+        <span className="ai-floating-tooltip">
+          AI Assistant
+        </span>
+      </button>
     </div>
   );
 }

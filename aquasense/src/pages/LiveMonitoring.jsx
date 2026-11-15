@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   Droplets,
@@ -13,13 +13,14 @@ import {
 } from "lucide-react";
 
 import FlowChart from "../components/FlowChart";
+import PressureChart from "../components/PressureChart";
 import { getReadings, getDashboardSummary } from "../api";
+import "../ChartLayouts.css";
 
 function formatTime(value) {
   if (!value) return "Waiting for data";
 
-  const normalized = String(value).replace(" ", "T");
-  const date = new Date(normalized);
+  const date = new Date(String(value).replace(" ", "T"));
 
   if (Number.isNaN(date.getTime())) return "Unknown";
 
@@ -38,16 +39,14 @@ function LiveMonitoring() {
   const [apiError, setApiError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  async function loadMonitoringData() {
+  const loadMonitoringData = useCallback(async () => {
     try {
       const [readingResult, summaryResult] = await Promise.all([
         getReadings(100),
         getDashboardSummary(),
       ]);
 
-      setReadings(
-        Array.isArray(readingResult) ? readingResult : []
-      );
+      setReadings(Array.isArray(readingResult) ? readingResult : []);
       setDashboard(summaryResult);
       setLastUpdated(new Date());
       setApiError("");
@@ -59,56 +58,65 @@ function LiveMonitoring() {
       setLoading(false);
       setRefreshing(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    loadMonitoringData();
 
-    async function refreshData() {
-      try {
-        const [readingResult, summaryResult] = await Promise.all([
-          getReadings(100),
-          getDashboardSummary(),
-        ]);
+    const intervalId = setInterval(loadMonitoringData, 3000);
 
-        if (!cancelled) {
-          setReadings(
-            Array.isArray(readingResult) ? readingResult : []
-          );
-          setDashboard(summaryResult);
-          setLastUpdated(new Date());
-          setApiError("");
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setApiError(
-            error.message || "Unable to connect to AquaSense backend."
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
+    const handleModeChange = () => {
+      loadMonitoringData();
+    };
 
-    refreshData();
-
-    const intervalId = setInterval(refreshData, 3000);
+    window.addEventListener(
+      "aquasense-mode-changed",
+      handleModeChange
+    );
 
     return () => {
-      cancelled = true;
       clearInterval(intervalId);
+      window.removeEventListener(
+        "aquasense-mode-changed",
+        handleModeChange
+      );
     };
-  }, []);
+  }, [loadMonitoringData]);
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+
+    setRefreshing(true);
+    await loadMonitoringData();
+  };
 
   const latest = dashboard?.latest;
   const today = dashboard?.today;
 
-  const flowRate = Number(latest?.flowRateLpm ?? 0);
+  const isSimulatorMode = dashboard?.mode === "simulator";
+  const activeSource = isSimulatorMode ? "simulated" : "physical";
+
+  // Only show readings belonging to the currently selected mode.
+  const activeReadings = readings.filter(
+    (reading) =>
+      (reading.source || "physical") === activeSource
+  );
+
+  const recentReadings = activeReadings.slice(0, 6);
+
+  // Ignore a stale reading if it belongs to the other operating mode.
+  const latestMatchesMode =
+    latest &&
+    (latest.source || "physical") === activeSource;
+
+  const currentReading = latestMatchesMode ? latest : null;
+
+  const flowRate = Number(currentReading?.flowRateLpm ?? 0);
   const todayUsage = Number(today?.usageLitres ?? 0);
   const peakFlow = Number(today?.peakFlowLpm ?? 0);
 
-  const isSimulated = latest?.source === "simulated";
-  const isOnline = latest?.sensorStatus === "online";
+  const isOnline =
+    currentReading?.sensorStatus === "online";
 
   const formattedTime = lastUpdated
     ? lastUpdated.toLocaleTimeString([], {
@@ -118,11 +126,9 @@ function LiveMonitoring() {
       })
     : "Waiting for data";
 
-  const recentReadings = readings.slice(0, 6);
-
-  const activityStatus = !latest
+  const activityStatus = !currentReading
     ? "Waiting"
-    : !isOnline
+    : !isSimulatorMode && !isOnline
       ? "Offline"
       : flowRate === 0
         ? "No flow"
@@ -130,9 +136,9 @@ function LiveMonitoring() {
           ? "High flow"
           : "Flow detected";
 
-  const activityDescription = !latest
+  const activityDescription = !currentReading
     ? "Waiting for the first sensor reading."
-    : !isOnline
+    : !isSimulatorMode && !isOnline
       ? "The latest reading reports that the sensor is offline."
       : flowRate === 0
         ? "No water flow is reported by the latest reading."
@@ -141,14 +147,9 @@ function LiveMonitoring() {
           : "AquaSense is receiving water-flow readings.";
 
   const signalStrength =
-    latest?.rssi == null
+    currentReading?.rssi == null
       ? "Unavailable"
-      : `${latest.rssi} dBm`;
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadMonitoringData();
-  };
+      : `${currentReading.rssi} dBm`;
 
   return (
     <div className="page-container live-page">
@@ -168,6 +169,7 @@ function LiveMonitoring() {
         </div>
 
         <button
+          type="button"
           className={`refresh-button ${
             refreshing ? "refreshing" : ""
           }`}
@@ -190,10 +192,10 @@ function LiveMonitoring() {
             <strong>
               {apiError
                 ? "Backend Connection Error"
-                : !latest
+                : !currentReading
                   ? "Waiting for Readings"
-                  : isSimulated
-                    ? "Simulation Connected"
+                  : isSimulatorMode
+                    ? "Simulation Mode Active"
                     : isOnline
                       ? "Device Connected"
                       : "Device Offline"}
@@ -210,9 +212,9 @@ function LiveMonitoring() {
             <span></span>
             {apiError
               ? "Error"
-              : !latest
+              : !currentReading
                 ? "Waiting"
-                : isSimulated
+                : isSimulatorMode
                   ? "Simulated"
                   : isOnline
                     ? "Online"
@@ -225,10 +227,10 @@ function LiveMonitoring() {
         </div>
       </div>
 
-      {isSimulated && (
+      {isSimulatorMode && (
         <p className="simulation-notice">
-          Demo mode — readings are simulated, not measurements from
-          physical hardware.
+          Demo mode — flow and pressure readings are simulated,
+          not measurements from physical hardware.
         </p>
       )}
 
@@ -249,18 +251,18 @@ function LiveMonitoring() {
             <span>Current Flow Rate</span>
 
             <div className="metric-number">
-              {latest ? flowRate.toFixed(2) : "—"}
+              {currentReading ? flowRate.toFixed(2) : "—"}
               <small>L/min</small>
             </div>
 
             <div className="metric-status normal">
               <CircleCheck size={14} />
-              {isSimulated ? "Simulated reading" : activityStatus}
+              {isSimulatorMode ? "Simulated reading" : activityStatus}
             </div>
           </div>
 
           <div className="metric-live-label">
-            {latest ? "LIVE" : "WAITING"}
+            {currentReading ? "LIVE" : "WAITING"}
           </div>
         </div>
 
@@ -316,18 +318,27 @@ function LiveMonitoring() {
             </div>
 
             <div className="metric-subtext">
-              {latest ? "Based on latest reading" : "No data yet"}
+              {currentReading
+                ? "Based on latest reading"
+                : "No data yet"}
             </div>
           </div>
         </div>
       </div>
 
-      {/* LIVE CHART */}
-      <div className="live-chart-section">
+      {/* LIVE CHARTS */}
+      <div
+        className={`live-charts-stack ${
+          isSimulatorMode ? "simulator" : "normal"
+        }`}
+      >
         <FlowChart
           title="Live Water Flow"
           subtitle="Flow measurements recorded by the AquaSense backend."
+          source={activeSource}
         />
+
+        {isSimulatorMode && <PressureChart />}
       </div>
 
       {/* LOWER SECTION */}
@@ -353,7 +364,7 @@ function LiveMonitoring() {
 
             <div>
               <strong>
-                {!latest
+                {!currentReading
                   ? "Waiting for sensor data"
                   : flowRate > 0
                     ? "Water flow reported"
@@ -368,7 +379,9 @@ function LiveMonitoring() {
             <div>
               <span>Current flow</span>
               <strong>
-                {latest ? `${flowRate.toFixed(2)} L/min` : "—"}
+                {currentReading
+                  ? `${flowRate.toFixed(2)} L/min`
+                  : "—"}
               </strong>
             </div>
 
@@ -412,20 +425,29 @@ function LiveMonitoring() {
               <span>Connection</span>
               <strong className="online-text">
                 <span></span>
-                {latest
-                  ? isSimulated
+                {!currentReading
+                  ? "Waiting"
+                  : isSimulatorMode
                     ? "Simulation"
                     : isOnline
                       ? "Online"
-                      : "Offline"
-                  : "Waiting"}
+                      : "Offline"}
               </strong>
             </div>
 
-            <div className="device-info-row">
-              <span>Signal strength</span>
-              <strong>{signalStrength}</strong>
-            </div>
+            {!isSimulatorMode && (
+              <div className="device-info-row">
+                <span>Signal strength</span>
+                <strong>{signalStrength}</strong>
+              </div>
+            )}
+
+            {isSimulatorMode && (
+              <div className="device-info-row">
+                <span>Pressure sensor</span>
+                <strong>Simulated</strong>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -435,7 +457,9 @@ function LiveMonitoring() {
         <div className="panel-header">
           <div>
             <h3>Recent Readings</h3>
-            <p>Latest flow measurements received by the system.</p>
+            <p>
+              Latest flow measurements from the active data source.
+            </p>
           </div>
 
           <Clock3 size={20} />
@@ -460,7 +484,7 @@ function LiveMonitoring() {
               ) : recentReadings.length === 0 ? (
                 <tr>
                   <td colSpan="4">
-                    No readings received yet.
+                    No readings received from the active source yet.
                   </td>
                 </tr>
               ) : (
@@ -506,8 +530,7 @@ function LiveMonitoring() {
           <p>
             AquaSense identifies unusual water-flow patterns for review.
             An observation does not independently confirm or locate a
-            physical leak. Pressure readings, if present, may also be
-            simulated.
+            physical leak.
           </p>
         </div>
       </div>

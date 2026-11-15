@@ -18,12 +18,12 @@ const RANGE_MS = {
   "24h": 24 * 60 * 60 * 1000,
 };
 
-// SQLite timestamps are returned as "YYYY-MM-DD HH:mm:ss".
-// Interpret these timezone-free timestamps consistently as UTC.
+// SQLite CURRENT_TIMESTAMP values are UTC.
 function parseTimestamp(value) {
   if (!value) return NaN;
 
   const text = String(value).trim();
+
   const match = text.match(
     /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/
   );
@@ -56,14 +56,15 @@ function parseTimestamp(value) {
 
 function FlowChart({
   title = "Live Water Flow",
-  subtitle = "Real-time flow activity from your AquaSense device.",
+  subtitle = "Water flow activity recorded by AquaSense.",
+  source = "simulated",
 }) {
   const [range, setRange] = useState("1h");
   const [isLive, setIsLive] = useState(true);
   const [readings, setReadings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     const clockInterval = setInterval(() => {
@@ -80,7 +81,6 @@ function FlowChart({
       try {
         const result = await getReadings(500);
 
-        // Support either an array or the API's { readings: [...] } response.
         const rows = Array.isArray(result)
           ? result
           : Array.isArray(result?.readings)
@@ -118,40 +118,69 @@ function FlowChart({
     };
   }, [isLive]);
 
-  const data = useMemo(() => {
+  const chartResult = useMemo(() => {
     const cutoff = now - RANGE_MS[range];
 
-    return readings
+    const selectedReadings = readings
+      .filter((reading) => {
+        return (reading.source || "physical") === source;
+      })
       .map((reading) => ({
-        reading,
         timestamp: parseTimestamp(reading.receivedAt),
         flow: Number(reading.flowRateLpm),
       }))
-      .filter(({ reading, timestamp, flow }) => {
+      .filter(({ timestamp, flow }) => {
         return (
           Number.isFinite(timestamp) &&
-          timestamp >= cutoff &&
-          timestamp <= now + 60000 &&
-          reading.flowRateLpm != null &&
           Number.isFinite(flow)
         );
       })
-      .sort((a, b) => a.timestamp - b.timestamp)
-      .map(({ reading, timestamp, flow }) => ({
-        timestamp,
-        time: new Date(timestamp).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          ...(range === "1h" ? { second: "2-digit" } : {}),
-        }),
-        flow: Number(flow.toFixed(2)),
-        source: reading.source || "physical",
-      }));
-  }, [readings, range, now]);
+      .sort((a, b) => a.timestamp - b.timestamp);
 
-  const hasSimulatedReadings = data.some(
-    (reading) => reading.source === "simulated"
-  );
+    const recentReadings = selectedReadings.filter(
+      (reading) =>
+        reading.timestamp >= cutoff &&
+        reading.timestamp <= now + 60000
+    );
+
+    // If there are no readings in the selected period,
+    // show the latest available historical readings instead.
+    const usingHistoricalData = recentReadings.length === 0;
+
+    const visibleReadings = usingHistoricalData
+      ? selectedReadings.slice(-60)
+      : recentReadings;
+
+    const data = visibleReadings.map(({ timestamp, flow }) => ({
+      timestamp,
+      time: new Date(timestamp).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        ...(range === "1h" ? { second: "2-digit" } : {}),
+      }),
+      flow: Number(flow.toFixed(2)),
+    }));
+
+    const latestTimestamp =
+      selectedReadings.length > 0
+        ? selectedReadings[selectedReadings.length - 1].timestamp
+        : null;
+
+    const isFresh =
+      latestTimestamp !== null &&
+      now - latestTimestamp <= 120000 &&
+      now >= latestTimestamp - 60000;
+
+    return {
+      data,
+      usingHistoricalData,
+      isFresh,
+      latestTimestamp,
+    };
+  }, [readings, range, now, source]);
+
+  const { data, usingHistoricalData, isFresh, latestTimestamp } =
+    chartResult;
 
   return (
     <div className="chart-card">
@@ -160,10 +189,16 @@ function FlowChart({
           <div className="chart-title-row">
             <h3>{title}</h3>
 
-            {isLive && (
+            {isFresh && isLive && (
               <span className="live-indicator">
                 <span></span>
                 LIVE
+              </span>
+            )}
+
+            {usingHistoricalData && data.length > 0 && (
+              <span className="simulated-label">
+                HISTORICAL DATA
               </span>
             )}
           </div>
@@ -191,15 +226,20 @@ function FlowChart({
         </div>
       </div>
 
-      {hasSimulatedReadings && (
-        <p className="simulation-notice">
-          Demo data — chart includes simulated sensor readings.
-        </p>
-      )}
-
       {error && (
         <p className="simulation-notice">
           Chart error: {error}
+        </p>
+      )}
+
+      {usingHistoricalData && data.length > 0 && (
+        <p className="simulation-notice">
+          No recent readings available. Showing the latest stored
+          readings from this data source.
+          {latestTimestamp !== null &&
+            ` Last recorded: ${new Date(
+              latestTimestamp
+            ).toLocaleString()}`}
         </p>
       )}
 
@@ -210,8 +250,8 @@ function FlowChart({
           <p>Unable to load chart data. Check the backend connection.</p>
         ) : data.length === 0 ? (
           <p>
-            No readings found in the selected time range. Check that your
-            computer clock and backend timestamps are aligned.
+            No readings are available for the selected data source.
+            Start the simulator or connect your physical device.
           </p>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -258,11 +298,9 @@ function FlowChart({
                   borderRadius: "10px",
                   boxShadow: "0 5px 20px rgba(16, 42, 67, 0.08)",
                 }}
-                formatter={(value, name, item) => [
+                formatter={(value) => [
                   `${Number(value).toFixed(2)} L/min`,
-                  item.payload.source === "simulated"
-                    ? "Flow (simulated)"
-                    : "Flow",
+                  "Flow",
                 ]}
                 labelFormatter={(label) => `Time: ${label}`}
               />

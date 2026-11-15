@@ -1,19 +1,26 @@
-const readingsRouter = require("./routes/readings");
+
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const readingsRouter = require("./routes/readings");
+const simulationRouter = require("./routes/simulation");
+const dashboardRouter = require("./routes/dashboard");
+const mlRouter = require("./routes/ml");
+
 const app = express();
 const PORT = process.env.PORT || 3001;
-const dashboardRouter = require("./routes/dashboard");
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 
+// API routes
 app.use("/api/readings", readingsRouter);
-const simulationRouter = require("./routes/simulation");
 app.use("/api/simulation", simulationRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/ml", mlRouter);
+
 // Basic API route
 app.get("/", (req, res) => {
   res.json({

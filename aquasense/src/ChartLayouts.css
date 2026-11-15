@@ -1,0 +1,153 @@
+
+/* =========================================
+   AQUASENSE - CHART LAYOUTS
+   ========================================= */
+
+/* OVERVIEW PAGE */
+
+.overview-charts-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 22px;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.overview-charts-grid.simulator {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.overview-charts-grid > * {
+  min-width: 0;
+  height: 100%;
+}
+
+.overview-charts-grid .chart-card {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1px solid #e8eef5;
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(16, 42, 67, 0.04);
+  overflow: hidden;
+}
+
+.overview-charts-grid .chart-header {
+  min-height: 72px;
+  padding: 20px 22px 12px;
+  box-sizing: border-box;
+}
+
+.overview-charts-grid .chart-container {
+  width: 100%;
+  height: 300px;
+  min-width: 0;
+  padding: 8px 18px 18px;
+  box-sizing: border-box;
+}
+
+.overview-events-section {
+  width: 100%;
+  margin-top: 24px;
+}
+
+/* LIVE MONITORING PAGE */
+
+.live-charts-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 24px;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.live-charts-stack.simulator {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.live-charts-stack > * {
+  width: 100%;
+  min-width: 0;
+}
+
+.live-charts-stack .chart-card {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1px solid #e8eef5;
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(16, 42, 67, 0.04);
+  overflow: hidden;
+}
+
+.live-charts-stack .chart-header {
+  min-height: 72px;
+  padding: 20px 22px 12px;
+  box-sizing: border-box;
+}
+
+.live-charts-stack .chart-container {
+  width: 100%;
+  height: 300px;
+  min-width: 0;
+  padding: 8px 18px 18px;
+  box-sizing: border-box;
+}
+
+/* SIMULATED LABEL */
+
+.simulated-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 9px;
+  border-radius: 20px;
+  background: #eaf4fd;
+  color: #1683d8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* RESPONSIVE LAYOUT */
+
+@media (max-width: 900px) {
+  .overview-charts-grid.simulator,
+  .live-charts-stack.simulator {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .overview-charts-grid {
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .overview-events-section {
+    margin-top: 18px;
+  }
+
+  .live-charts-stack {
+    gap: 18px;
+    margin-top: 18px;
+  }
+
+  .overview-charts-grid .chart-header,
+  .live-charts-stack .chart-header {
+    padding: 16px 16px 10px;
+  }
+
+  .overview-charts-grid .chart-container,
+  .live-charts-stack .chart-container {
+    height: 250px;
+    padding: 8px 10px 14px;
+  }
+}

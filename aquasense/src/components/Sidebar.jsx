@@ -1,3 +1,4 @@
+
 import {
   LayoutDashboard,
   Activity,
@@ -10,40 +11,18 @@ import {
 } from "lucide-react";
 
 const menuItems = [
-  {
-    label: "Overview",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Live Monitoring",
-    icon: Activity,
-  },
-  {
-    label: "Consumption",
-    icon: Droplets,
-  },
-  {
-    label: "History",
-    icon: History,
-  },
-  {
-    label: "Events",
-    icon: Bell,
-  },
-  {
-    label: "Device Health",
-    icon: Cpu,
-  },
-  {
-    label: "Settings",
-    icon: Settings,
-  },
+  { label: "Overview", icon: LayoutDashboard },
+  { label: "Live Monitoring", icon: Activity },
+  { label: "Consumption", icon: Droplets },
+  { label: "History", icon: History },
+  { label: "Events", icon: Bell },
+  { label: "Device Health", icon: Cpu },
+  { label: "Settings", icon: Settings },
 ];
 
 function Sidebar({ activePage, setActivePage }) {
   return (
     <aside className="sidebar">
-      {/* Logo */}
       <div className="sidebar-logo">
         <div className="logo-icon">
           <Waves size={22} strokeWidth={2.4} />
@@ -55,8 +34,7 @@ function Sidebar({ activePage, setActivePage }) {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" aria-label="Main navigation">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activePage === item.label;
@@ -64,8 +42,10 @@ function Sidebar({ activePage, setActivePage }) {
           return (
             <button
               key={item.label}
+              type="button"
               className={`nav-item ${isActive ? "active" : ""}`}
               onClick={() => setActivePage(item.label)}
+              aria-current={isActive ? "page" : undefined}
             >
               <Icon size={18} strokeWidth={2} />
               <span>{item.label}</span>
@@ -74,7 +54,6 @@ function Sidebar({ activePage, setActivePage }) {
         })}
       </nav>
 
-      {/* Bottom branding */}
       <div className="sidebar-bottom">
         <div className="water-decoration">
           <span></span>

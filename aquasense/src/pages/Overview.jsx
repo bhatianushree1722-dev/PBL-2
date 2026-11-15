@@ -16,12 +16,28 @@ import {
 import StatusBanner from "../components/StatusBanner";
 import StatCard from "../components/StatCard";
 import FlowChart from "../components/FlowChart";
+import PressureChart from "../components/PressureChart";
 import { getDashboardSummary } from "../api";
+
+import "../ChartLayouts.css";
 
 function Overview() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [apiError, setApiError] = useState("");
+  const [currentTime, setCurrentTime] = useState(0);
+
+  // Maintain the current time outside the render calculation.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentTime(Date.now());
+
+    const clockInterval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(clockInterval);
+  }, []);
 
   // Fetch dashboard information from the backend.
   useEffect(() => {
@@ -57,9 +73,13 @@ function Overview() {
   const latestReading = dashboard?.latest;
   const todaySummary = dashboard?.today;
 
+  const isSimulatorMode = dashboard?.mode === "simulator";
   const isSimulated = latestReading?.source === "simulated";
+
   const isDeviceOnline =
     latestReading?.sensorStatus === "online";
+
+  const activeSource = isSimulatorMode ? "simulated" : "physical";
 
   const flowRate = Number(
     latestReading?.flowRateLpm ?? 0
@@ -74,18 +94,18 @@ function Overview() {
   );
 
   const readingTime = latestReading?.receivedAt
-    ? new Date(latestReading.receivedAt)
+    ? new Date(latestReading.receivedAt).getTime()
     : null;
 
-  const lastUpdate = readingTime
-    ? `${Math.max(
-        0,
-        Math.floor(
-          // eslint-disable-next-line react-hooks/purity
-          (Date.now() - readingTime.getTime()) / 1000
-        )
-      )} sec ago`
-    : "Waiting for data";
+  const lastUpdate =
+    readingTime != null &&
+    Number.isFinite(readingTime) &&
+    currentTime > 0
+      ? `${Math.max(
+          0,
+          Math.floor((currentTime - readingTime) / 1000)
+        )} sec ago`
+      : "Waiting for data";
 
   // Existing demonstration events.
   // These will be connected to real backend events later.
@@ -165,14 +185,14 @@ function Overview() {
           <StatusBanner
             status={isDeviceOnline ? "normal" : "warning"}
             title={
-              isSimulated
+              isSimulatorMode
                 ? "Simulation Mode Active"
                 : isDeviceOnline
                   ? "Device Connected"
                   : "Device Offline"
             }
             message={
-              isSimulated
+              isSimulatorMode
                 ? "Displaying simulated sensor readings. Physical hardware is not being verified."
                 : isDeviceOnline
                   ? "The latest reading was received from the configured device."
@@ -181,7 +201,7 @@ function Overview() {
           />
         )}
 
-        {isSimulated && !apiError && (
+        {isSimulatorMode && !apiError && (
           <p className="simulation-notice">
             Demo mode — flow and pressure readings are simulated,
             not measurements from physical hardware.
@@ -253,11 +273,19 @@ function Overview() {
           />
         </div>
 
-        {/* MAIN GRID */}
-        <div className="overview-main-grid">
-          <FlowChart />
+        {/* CHARTS */}
+        <div
+          className={`overview-charts-grid ${
+            isSimulatorMode ? "simulator" : "normal"
+          }`}
+        >
+          <FlowChart source={activeSource} />
 
-          {/* EVENTS */}
+          {isSimulatorMode && <PressureChart />}
+        </div>
+
+        {/* RECENT EVENTS */}
+        <div className="overview-events-section">
           <div className="recent-events-card">
             <div className="section-card-header">
               <div>

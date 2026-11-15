@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+**/node_modules/
+.venv/
+venv/
+__pycache__/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+dist-ssr/
+**/dist/
+
+# Logs and temporary files
+*.log
+*.local
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+
+# Python
+*.py[cod]
+.pytest_cache/
+
+# Local database backups
+*.db-journal
+*.sqlite-journal
+
+# Local SQLite database
+backend/aquasense.db
